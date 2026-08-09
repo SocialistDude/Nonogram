@@ -123,27 +123,54 @@ class SettingsView extends ConsumerWidget {
                       width: 1.0,
                     ),
                   ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                    title: const Text(
-                      'Haptic Feedback',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.headingDark,
-                        letterSpacing: 0.8,
+                  child: Column(
+                    children: [
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        title: const Text(
+                          'Haptic Feedback',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.headingDark,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        trailing: Switch(
+                          value: ref.watch(progressRepositoryProvider).hapticsEnabled,
+                          activeThumbColor: Colors.white,
+                          activeTrackColor: Colors.grey[700],
+                          inactiveThumbColor: AppColors.subtext,
+                          inactiveTrackColor: AppColors.bg,
+                          onChanged: (val) {
+                            ref.read(progressRepositoryProvider).toggleHaptics();
+                          },
+                        ),
                       ),
-                    ),
-                    trailing: Switch(
-                      value: ref.watch(progressRepositoryProvider).hapticsEnabled,
-                      activeThumbColor: Colors.white,
-                      activeTrackColor: Colors.grey[700],
-                      inactiveThumbColor: AppColors.subtext,
-                      inactiveTrackColor: AppColors.bg,
-                      onChanged: (val) {
-                        ref.read(progressRepositoryProvider).toggleHaptics();
-                      },
-                    ),
+                      Divider(color: AppColors.border, height: 1),
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        title: const Text(
+                          'Long Press to Cross',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.headingDark,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        trailing: Switch(
+                          value: ref.watch(progressRepositoryProvider).longPressToCrossEnabled,
+                          activeThumbColor: Colors.white,
+                          activeTrackColor: Colors.grey[700],
+                          inactiveThumbColor: AppColors.subtext,
+                          inactiveTrackColor: AppColors.bg,
+                          onChanged: (val) {
+                            ref.read(progressRepositoryProvider).toggleLongPressToCross();
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

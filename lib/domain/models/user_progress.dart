@@ -14,6 +14,7 @@ class UserProgress {
     this.savedMoveCount = 0,
     this.savedElapsedSeconds = 0,
     this.hapticsEnabled = true,
+    this.longPressToCrossEnabled = true,
   });
 
   final int currentLevel;
@@ -24,10 +25,11 @@ class UserProgress {
   final Map<int, int> bestTimeSeconds;
 
   final int? savedLevelNumber;
-  final List<List<int>>? savedBoard; // CellState indices
+  final List<List<int>>? savedBoard;
   final int savedMoveCount;
   final int savedElapsedSeconds;
   final bool hapticsEnabled;
+  final bool longPressToCrossEnabled;
 
   UserProgress copyWith({
     int? currentLevel,
@@ -40,6 +42,7 @@ class UserProgress {
     int? savedMoveCount,
     int? savedElapsedSeconds,
     bool? hapticsEnabled,
+    bool? longPressToCrossEnabled,
   }) {
     return UserProgress(
       currentLevel: currentLevel ?? this.currentLevel,
@@ -53,6 +56,8 @@ class UserProgress {
       savedMoveCount: savedMoveCount ?? this.savedMoveCount,
       savedElapsedSeconds: savedElapsedSeconds ?? this.savedElapsedSeconds,
       hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
+      longPressToCrossEnabled:
+          longPressToCrossEnabled ?? this.longPressToCrossEnabled,
     );
   }
 
@@ -109,6 +114,7 @@ class UserProgress {
       savedMoveCount: 0,
       savedElapsedSeconds: 0,
       hapticsEnabled: hapticsEnabled,
+      longPressToCrossEnabled: longPressToCrossEnabled,
     );
   }
 }

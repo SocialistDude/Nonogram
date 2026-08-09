@@ -652,7 +652,6 @@ class _GameViewState extends ConsumerState<GameView> {
                       ),
                     ),
 
-                    // Cells in row
                     for (int c = 0; c < size; c++)
                       GestureDetector(
                         onTap: () {
@@ -662,6 +661,18 @@ class _GameViewState extends ConsumerState<GameView> {
                             vm.setCellState(r, c, _currentDrawMode);
                           }
                         },
+                        onLongPress: ref.read(progressRepositoryProvider).longPressToCrossEnabled
+                            ? () {
+                                if (ref.read(progressRepositoryProvider).hapticsEnabled) {
+                                  HapticFeedback.mediumImpact();
+                                }
+                                if (state.board[r][c] == CellState.cross) {
+                                  vm.setCellState(r, c, CellState.empty);
+                                } else {
+                                  vm.setCellState(r, c, CellState.cross);
+                                }
+                              }
+                            : null,
                         child: Container(
                           width: cellSize,
                           height: cellSize,

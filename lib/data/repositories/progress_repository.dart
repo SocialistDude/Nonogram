@@ -12,6 +12,8 @@ class ProgressRepository extends ChangeNotifier {
 
   bool get hapticsEnabled => _cachedProgress?.hapticsEnabled ?? true;
 
+  bool get longPressToCrossEnabled => _cachedProgress?.longPressToCrossEnabled ?? true;
+
   Future<UserProgress> getProgress() async {
     if (_cachedProgress != null) return _cachedProgress!;
     _cachedProgress = await _hiveService.getProgress();
@@ -27,6 +29,11 @@ class ProgressRepository extends ChangeNotifier {
   Future<void> toggleHaptics() async {
     final current = await getProgress();
     await saveProgress(current.copyWith(hapticsEnabled: !current.hapticsEnabled));
+  }
+
+  Future<void> toggleLongPressToCross() async {
+    final current = await getProgress();
+    await saveProgress(current.copyWith(longPressToCrossEnabled: !current.longPressToCrossEnabled));
   }
 
   Future<void> completeLevel(int levelNumber, int moves) async {

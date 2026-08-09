@@ -24,12 +24,13 @@ class UserProgressAdapter extends TypeAdapter<UserProgress> {
       savedMoveCount: fields[7] as int? ?? 0,
       savedElapsedSeconds: fields[8] as int? ?? 0,
       hapticsEnabled: fields[9] as bool? ?? true,
+      longPressToCrossEnabled: fields[10] as bool? ?? true,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProgress obj) {
-    writer.writeByte(10);
+    writer.writeByte(11);
     writer.writeByte(0);
     writer.write(obj.currentLevel);
     writer.writeByte(1);
@@ -50,6 +51,8 @@ class UserProgressAdapter extends TypeAdapter<UserProgress> {
     writer.write(obj.savedElapsedSeconds);
     writer.writeByte(9);
     writer.write(obj.hapticsEnabled);
+    writer.writeByte(10);
+    writer.write(obj.longPressToCrossEnabled);
   }
 
   Map<int, int> _readIntMap(dynamic raw) {
