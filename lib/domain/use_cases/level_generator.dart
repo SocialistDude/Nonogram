@@ -152,6 +152,8 @@ class LevelGenerator {
     List<List<int>> colClues,
   ) {
     int solutionsFound = 0;
+    int statesVisited = 0;
+    bool searchAborted = false;
 
     final rowPossibilities = <List<List<bool>>>[];
     for (int r = 0; r < size; r++) {
@@ -275,7 +277,12 @@ class LevelGenerator {
     );
 
     void solveRow(int rowIndex, List<List<bool>> currentGrid) {
-      if (solutionsFound >= 2) return;
+      if (solutionsFound >= 2 || searchAborted) return;
+      statesVisited++;
+      if (statesVisited > 2000) {
+        searchAborted = true;
+        return;
+      }
 
       if (rowIndex == size) {
         for (int c = 0; c < size; c++) {
@@ -316,11 +323,12 @@ class LevelGenerator {
         solveRow(rowIndex + 1, currentGrid);
         currentGrid.removeLast();
 
-        if (solutionsFound >= 2) return;
+        if (solutionsFound >= 2 || searchAborted) return;
       }
     }
 
     solveRow(0, []);
+    if (searchAborted) return 0;
     return solutionsFound;
   }
 
