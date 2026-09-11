@@ -21,6 +21,12 @@ version: 1.0.4+5
 environment:
   sdk: ^3.12.2
 
+flutter_launcher_icons:
+  android: "launcher_icon"   # Имя иконки для Android
+  ios: true                  # Генерировать и для iOS
+  image_path: "assets/icon/app_icon.png" # Путь к вашему PNG-файлу 1024x1024
+  adaptive_icon_background: "#000000" # Цвет фона для адаптивной иконки
+
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
@@ -40,6 +46,7 @@ dependencies:
   url_launcher: ^6.3.1
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
   flutter_test:
     sdk: flutter
 

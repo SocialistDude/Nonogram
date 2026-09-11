@@ -27,9 +27,37 @@ class GameView extends ConsumerStatefulWidget {
 class _GameViewState extends ConsumerState<GameView> {
   CellState _currentDrawMode = CellState.filled;
 
+// --- свайп-рисование ---
+  Offset? _panStartPos;
+  int? _strokeStartR;
+  int? _strokeStartC;
+  int? _lastR;
+  int? _lastC;
+  int _strokeAxis = 0;
+  bool _strokeActive = false;
+  bool _strokeErase = false;
+  bool _strokeSkipped = false;
+  static const double _directionThreshold = 8.0;
+
+// --- мультитач навигация ---
+  late final TransformationController _transformationController;
+  final Map<int, Offset> _activePointers = {};
+  Offset? _lastMid;
+  double? _lastDist;
+
+// --- автокрест ---
+  bool _autoCrossEnabled = true;
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _transformationController = TransformationController();
     Future.microtask(() {
       final vm = ref.read(gameViewModelProvider.notifier);
       if (widget.isRandom) {
@@ -44,6 +72,186 @@ class _GameViewState extends ConsumerState<GameView> {
     final m = seconds ~/ 60;
     final s = seconds % 60;
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  void _applyTwoFingerTransform() {
+    final points = _activePointers.values.toList();
+    if (points.length < 2) return;
+
+    final p1 = points[0];
+    final p2 = points[1];
+    final mid = (p1 + p2) / 2;
+    final dist = (p1 - p2).distance;
+
+    if (_lastMid != null && _lastDist != null && _lastDist! > 0) {
+      final delta = mid - _lastMid!;
+      final scaleFactor = dist / _lastDist!;
+
+      final currentScale = _transformationController.value.getMaxScaleOnAxis();
+      final targetScale = (currentScale * scaleFactor).clamp(0.8, 4.0);
+      final actualScale = currentScale == 0 ? 1.0 : targetScale / currentScale;
+
+      final panMatrix = Matrix4.translationValues(delta.dx, delta.dy, 0);
+      final scaleMatrix = Matrix4.identity()
+        ..translate(mid.dx, mid.dy)
+        ..scale(actualScale)
+        ..translate(-mid.dx, -mid.dy);
+
+      _transformationController.value =
+          panMatrix * scaleMatrix * _transformationController.value;
+    }
+
+    _lastMid = mid;
+    _lastDist = dist;
+  }
+
+  void _handleTapUp(
+      TapUpDetails d,
+      double cellSize,
+      int size,
+      GameViewModelState state,
+      GameViewModel vm,
+      ) {
+    if (_activePointers.length > 1) return;
+    final r = (d.localPosition.dy / cellSize).floor().clamp(0, size - 1);
+    final c = (d.localPosition.dx / cellSize).floor().clamp(0, size - 1);
+    if (state.board[r][c] == _currentDrawMode) {
+      vm.setCellState(r, c, CellState.empty);
+    } else {
+      vm.setCellState(r, c, _currentDrawMode);
+    }
+  }
+
+  void _handleLongPress(
+      LongPressStartDetails d,
+      double cellSize,
+      int size,
+      GameViewModelState state,
+      GameViewModel vm,
+      ) {
+    if (_activePointers.length > 1) return;
+    if (!ref.read(progressRepositoryProvider).longPressToCrossEnabled) return;
+    final r = (d.localPosition.dy / cellSize).floor().clamp(0, size - 1);
+    final c = (d.localPosition.dx / cellSize).floor().clamp(0, size - 1);
+    if (ref.read(progressRepositoryProvider).hapticsEnabled) {
+      HapticFeedback.mediumImpact();
+    }
+    if (state.board[r][c] == CellState.cross) {
+      vm.setCellState(r, c, CellState.empty);
+    } else {
+      vm.setCellState(r, c, CellState.cross);
+    }
+  }
+
+  void _handlePanDown(DragDownDetails d, double cellSize, int size) {
+    if (_activePointers.length > 1) {
+      _resetStroke();
+      return;
+    }
+    _panStartPos = d.localPosition;
+    _strokeStartR = (d.localPosition.dy / cellSize).floor().clamp(0, size - 1);
+    _strokeStartC = (d.localPosition.dx / cellSize).floor().clamp(0, size - 1);
+    _lastR = _strokeStartR;
+    _lastC = _strokeStartC;
+    _strokeAxis = 0;
+    _strokeActive = false;
+    _strokeErase = false;
+    _strokeSkipped = false;
+  }
+
+  void _handlePanUpdate(
+      DragUpdateDetails d,
+      double cellSize,
+      int size,
+      GameViewModel vm,
+      ) {
+    if (_activePointers.length > 1) return;
+    if (_panStartPos == null || _strokeStartR == null || _strokeStartC == null) {
+      return;
+    }
+    if (_strokeSkipped) return;
+
+    if (!_strokeActive) {
+      final delta = d.localPosition - _panStartPos!;
+      if (delta.distance < _directionThreshold) return;
+
+      final board = ref.read(gameViewModelProvider).board;
+      final firstCell = board[_strokeStartR!][_strokeStartC!];
+
+      if (firstCell == CellState.empty) {
+        _strokeErase = false;
+      } else if (firstCell == _currentDrawMode) {
+        _strokeErase = true;
+      } else {
+        _strokeSkipped = true;
+        return;
+      }
+
+      _strokeAxis = delta.dx.abs() > delta.dy.abs() ? 1 : 2;
+      _strokeActive = true;
+      vm.beginStroke();
+
+      vm.paintCell(_lastR!, _lastC!, _currentDrawMode, erase: _strokeErase);
+      if (ref.read(progressRepositoryProvider).hapticsEnabled) {
+        HapticFeedback.selectionClick();
+      }
+    }
+
+    int r, c;
+    if (_strokeAxis == 1) {
+      r = _strokeStartR!;
+      c = (d.localPosition.dx / cellSize).floor().clamp(0, size - 1);
+    } else {
+      c = _strokeStartC!;
+      r = (d.localPosition.dy / cellSize).floor().clamp(0, size - 1);
+    }
+
+    if (r != _lastR || c != _lastC) {
+      _paintPath(_lastR!, _lastC!, r, c, vm);
+      _lastR = r;
+      _lastC = c;
+    }
+  }
+
+  void _handlePanEnd(GameViewModel vm) {
+    if (_strokeActive) {
+      vm.endStroke();
+    }
+    _resetStroke();
+  }
+
+  void _resetStroke() {
+    _strokeActive = false;
+    _panStartPos = null;
+    _strokeStartR = null;
+    _strokeStartC = null;
+    _lastR = null;
+    _lastC = null;
+    _strokeAxis = 0;
+    _strokeErase = false;
+    _strokeSkipped = false;
+  }
+
+  void _paintPath(
+      int r0,
+      int c0,
+      int r1,
+      int c1,
+      GameViewModel vm,
+      ) {
+    if (r0 == r1) {
+      final step = c1 >= c0 ? 1 : -1;
+      for (int c = c0 + step;; c += step) {
+        vm.paintCell(r0, c, _currentDrawMode, erase: _strokeErase);
+        if (c == c1) break;
+      }
+    } else if (c0 == c1) {
+      final step = r1 >= r0 ? 1 : -1;
+      for (int r = r0 + step;; r += step) {
+        vm.paintCell(r, c0, _currentDrawMode, erase: _strokeErase);
+        if (r == r1) break;
+      }
+    }
   }
 
   @override
@@ -107,18 +315,56 @@ class _GameViewState extends ConsumerState<GameView> {
                             ).createShader(bounds);
                           },
                           blendMode: BlendMode.dstIn,
-                          child: InteractiveViewer(
-                            minScale: 0.8,
-                            maxScale: 4.0,
-                            boundaryMargin: const EdgeInsets.all(40.0),
-                            clipBehavior: Clip.none,
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0,
-                                  vertical: 8.0,
+                          child: Listener(
+                            behavior: HitTestBehavior.opaque,
+                            onPointerDown: (event) {
+                              _activePointers[event.pointer] = event.localPosition;
+
+                              // Второй палец — прерываем рисование и переключаемся в навигацию
+                              if (_activePointers.length >= 2) {
+                                if (_strokeActive) {
+                                  ref.read(gameViewModelProvider.notifier).endStroke();
+                                }
+                                _resetStroke();
+                                _lastMid = null;
+                                _lastDist = null;
+                              }
+                            },
+                            onPointerMove: (event) {
+                              if (_activePointers.containsKey(event.pointer)) {
+                                _activePointers[event.pointer] = event.localPosition;
+                              }
+                              if (_activePointers.length >= 2) {
+                                _applyTwoFingerTransform();
+                              }
+                            },
+                            onPointerUp: (event) {
+                              _activePointers.remove(event.pointer);
+                              if (_activePointers.length < 2) {
+                                _lastMid = null;
+                                _lastDist = null;
+                              }
+                            },
+                            onPointerCancel: (event) {
+                              _activePointers.remove(event.pointer);
+                              if (_activePointers.length < 2) {
+                                _lastMid = null;
+                                _lastDist = null;
+                              }
+                            },
+                            child: InteractiveViewer(
+                              transformationController: _transformationController,
+                              panEnabled: false,     // навигацию делаем вручную
+                              scaleEnabled: false,   // зум тоже делаем вручную
+                              minScale: 0.8,
+                              maxScale: 4.0,
+                              boundaryMargin: const EdgeInsets.all(40.0),
+                              clipBehavior: Clip.none,
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  child: _buildNonogramGrid(context, state, vm),
                                 ),
-                                child: _buildNonogramGrid(context, state, vm),
                               ),
                             ),
                           ),
@@ -260,19 +506,9 @@ class _GameViewState extends ConsumerState<GameView> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildModeButton(
-                            mode: CellState.filled,
-                            icon: Icons.square,
-                            label: 'FILL',
-                            color: AppColors.accent,
-                          ),
-                          const SizedBox(width: 24),
-                          _buildModeButton(
-                            mode: CellState.cross,
-                            icon: Icons.close_rounded,
-                            label: 'CROSS (X)',
-                            color: AppColors.cellCross,
-                          ),
+                          _buildModeToggle(),
+                          const SizedBox(width: 12),
+                          _buildAutoCrossToggle(vm),
                         ],
                       ),
                     ),
@@ -464,7 +700,98 @@ class _GameViewState extends ConsumerState<GameView> {
     );
   }
 
-  Widget _buildModeButton({
+  Widget _buildModeToggle() {
+    final isFill = _currentDrawMode == CellState.filled;
+    final Color color = isFill ? AppColors.accent : AppColors.cellCross;
+    final IconData icon = isFill ? Icons.square : Icons.close_rounded;
+    final String label = isFill ? 'FILL' : 'CROSS';
+    final Color fgColor = isFill ? Colors.black : Colors.white;
+
+    return GestureDetector(
+      onTap: () {
+        if (ref.read(progressRepositoryProvider).hapticsEnabled) {
+          HapticFeedback.selectionClick();
+        }
+        setState(() {
+          _currentDrawMode =
+          isFill ? CellState.cross : CellState.filled;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.4),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: fgColor, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                letterSpacing: 0.8,
+                color: fgColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAutoCrossToggle(GameViewModel vm) {
+    final enabled = _autoCrossEnabled;
+    return GestureDetector(
+      onTap: () {
+        if (ref.read(progressRepositoryProvider).hapticsEnabled) {
+          HapticFeedback.selectionClick();
+        }
+        setState(() => _autoCrossEnabled = !enabled);
+        vm.setAutoCross(_autoCrossEnabled);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: enabled ? AppColors.gold : AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: enabled ? Colors.white : AppColors.border,
+            width: 2,
+          ),
+          boxShadow: enabled
+              ? [
+            BoxShadow(
+              color: AppColors.gold.withValues(alpha: 0.4),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ]
+              : [],
+        ),
+        child: Icon(
+          Icons.auto_fix_high_rounded,
+          color: enabled ? Colors.black : AppColors.subtext,
+          size: 24,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleOption({
     required CellState mode,
     required IconData icon,
     required String label,
@@ -474,53 +801,38 @@ class _GameViewState extends ConsumerState<GameView> {
     return GestureDetector(
       onTap: () {
         if (ref.read(progressRepositoryProvider).hapticsEnabled) {
-          HapticFeedback.lightImpact();
+          HapticFeedback.selectionClick();
         }
         setState(() => _currentDrawMode = mode);
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? color : AppColors.surface,
+          color: isSelected ? color : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? Colors.white : AppColors.border,
-            width: 2,
-          ),
           boxShadow: isSelected
               ? [
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.4),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ]
+            BoxShadow(
+              color: color.withValues(alpha: 0.4),
+              blurRadius: 8,
+              spreadRadius: 1,
+            ),
+          ]
               : [],
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? (color == Colors.white || color == AppColors.accent
-                        ? Colors.black
-                        : Colors.white)
-                  : color,
-              size: 24,
-            ),
-            const SizedBox(width: 8),
+            Icon(icon, color: isSelected ? Colors.black : color, size: 20),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontWeight: FontWeight.w900,
-                fontSize: 16,
-                color: isSelected
-                    ? (color == Colors.white || color == AppColors.accent
-                          ? Colors.black
-                          : Colors.white)
-                    : AppColors.headingDark,
+                fontSize: 14,
                 letterSpacing: 0.8,
+                color: isSelected ? Colors.black : AppColors.headingDark,
               ),
             ),
           ],
@@ -530,171 +842,163 @@ class _GameViewState extends ConsumerState<GameView> {
   }
 
   Widget _buildNonogramGrid(
-    BuildContext context,
-    GameViewModelState state,
-    GameViewModel vm,
-  ) {
+      BuildContext context,
+      GameViewModelState state,
+      GameViewModel vm,
+      ) {
     final level = state.level!;
     final size = level.gridSize;
 
-    final maxColClueLen = level.colClues
-        .map((c) => c.length)
-        .fold(1, (a, b) => a > b ? a : b);
-    final maxRowClueLen = level.rowClues
-        .map((r) => r.length)
-        .fold(1, (a, b) => a > b ? a : b);
+    final maxColClueLen = level.colClues.map((c) => c.length).fold(1, (a, b) => a > b ? a : b);
+    final maxRowClueLen = level.rowClues.map((r) => r.length).fold(1, (a, b) => a > b ? a : b);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final availWidth = constraints.maxWidth;
         final availHeight = constraints.maxHeight;
 
-        // Dynamic scale calculation based on screen dimensions & grid size
-        final double maxClueWidthRatio = 0.28;
-        final double maxClueHeightRatio = 0.25;
+        const double maxClueWidthRatio = 0.28;
+        const double maxClueHeightRatio = 0.25;
 
-        final estimatedCellSizeWidth =
-            (availWidth * (1.0 - maxClueWidthRatio)) / size;
-        final estimatedCellSizeHeight =
-            (availHeight * (1.0 - maxClueHeightRatio)) / (size + 1);
+        final estimatedCellSizeWidth = (availWidth * (1.0 - maxClueWidthRatio)) / size;
+        final estimatedCellSizeHeight = (availHeight * (1.0 - maxClueHeightRatio)) / (size + 1);
 
-        double cellSize =
-            (estimatedCellSizeWidth < estimatedCellSizeHeight
-                    ? estimatedCellSizeWidth
-                    : estimatedCellSizeHeight)
-                .floorToDouble();
-
-        cellSize = cellSize.clamp(24.0, 68.0);
+        double cellSize = (estimatedCellSizeWidth < estimatedCellSizeHeight
+            ? estimatedCellSizeWidth
+            : estimatedCellSizeHeight)
+            .floorToDouble();
+        cellSize = cellSize.clamp(16.0, 68.0);
 
         final fontSize = (cellSize * 0.42).clamp(11.0, 18.0);
-        final rowClueWidth = (maxRowClueLen * (fontSize * 0.9)).clamp(
-          cellSize * 1.2,
-          availWidth * maxClueWidthRatio,
-        );
-        final clueHeight = (maxColClueLen * (fontSize * 1.15)).clamp(
-          cellSize * 1.2,
-          availHeight * maxClueHeightRatio,
-        );
+        final rowClueWidth = (maxRowClueLen * (fontSize * 0.9))
+            .clamp(cellSize * 1.2, availWidth * maxClueWidthRatio);
+        final clueHeight = (maxColClueLen * (fontSize * 1.15))
+            .clamp(cellSize * 1.2, availHeight * maxClueHeightRatio);
 
-        return FittedBox(
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          child: Table(
-            columnWidths: {
-              0: FixedColumnWidth(rowClueWidth),
-              for (int c = 0; c < size; c++) c + 1: FixedColumnWidth(cellSize),
-            },
-            children: [
-              // Top Header Row for Column Clues
-              TableRow(
-                children: [
-                  const SizedBox.shrink(), // Empty top-left corner
-                  for (int c = 0; c < size; c++)
-                    Container(
-                      height: clueHeight,
-                      alignment: Alignment.bottomCenter,
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.bottomCenter,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: level.colClues[c]
-                              .map(
-                                (val) => Text(
-                                  '$val',
-                                  style: TextStyle(
-                                    fontSize: fontSize,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.subtext,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+        final boardWidth = cellSize * size;
+        final boardHeight = cellSize * size;
+        final totalWidth = rowClueWidth + boardWidth;
+        final totalHeight = clueHeight + boardHeight;
 
-              // Rows with Row Clues + Board Cells
-              for (int r = 0; r < size; r++)
-                TableRow(
+        return Center(
+          child: SizedBox(
+            width: totalWidth,
+            height: totalHeight,
+            child: Stack(
+              children: [
+                // Слой 1: сетка с подсказками (без обработки жестов)
+                Table(
+                  columnWidths: {
+                    0: FixedColumnWidth(rowClueWidth),
+                    for (int c = 0; c < size; c++) c + 1: FixedColumnWidth(cellSize),
+                  },
                   children: [
-                    // Row Clue
-                    Container(
-                      height: cellSize,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: level.rowClues[r]
-                              .map(
-                                (val) => Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 2.0,
-                                  ),
-                                  child: Text(
+                    TableRow(
+                      children: [
+                        const SizedBox.shrink(),
+                        for (int c = 0; c < size; c++)
+                          SizedBox(
+                            height: clueHeight,
+                            child: Container(
+                              alignment: Alignment.bottomCenter,
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.bottomCenter,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: level.colClues[c]
+                                      .map((val) => Text(
                                     '$val',
                                     style: TextStyle(
                                       fontSize: fontSize,
                                       fontWeight: FontWeight.bold,
-                                      color: AppColors.headingDark,
+                                      color: AppColors.subtext,
                                     ),
-                                  ),
+                                  ))
+                                      .toList(),
                                 ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                    ),
-
-                    for (int c = 0; c < size; c++)
-                      GestureDetector(
-                        onTap: () {
-                          if (state.board[r][c] == _currentDrawMode) {
-                            vm.setCellState(r, c, CellState.empty);
-                          } else {
-                            vm.setCellState(r, c, _currentDrawMode);
-                          }
-                        },
-                        onLongPress: ref.read(progressRepositoryProvider).longPressToCrossEnabled
-                            ? () {
-                                if (ref.read(progressRepositoryProvider).hapticsEnabled) {
-                                  HapticFeedback.mediumImpact();
-                                }
-                                if (state.board[r][c] == CellState.cross) {
-                                  vm.setCellState(r, c, CellState.empty);
-                                } else {
-                                  vm.setCellState(r, c, CellState.cross);
-                                }
-                              }
-                            : null,
-                        child: Container(
-                          width: cellSize,
-                          height: cellSize,
-                          margin: const EdgeInsets.all(1.0),
-                          decoration: BoxDecoration(
-                            color: _getCellColor(r, c, state),
-                            borderRadius: BorderRadius.circular(
-                              size > 8 ? 4 : 6,
-                            ),
-                            border: Border.all(
-                              color: state.hintCell == (r * size + c)
-                                  ? AppColors.gold
-                                  : AppColors.border,
-                              width: state.hintCell == (r * size + c) ? 2.5 : 1,
+                              ),
                             ),
                           ),
-                          child: _buildCellContent(state.board[r][c], cellSize),
-                        ),
+                      ],
+                    ),
+                    for (int r = 0; r < size; r++)
+                      TableRow(
+                        children: [
+                          SizedBox(
+                            height: cellSize,
+                            child: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: level.rowClues[r]
+                                      .map((val) => Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                                    child: Text(
+                                      '$val',
+                                      style: TextStyle(
+                                        fontSize: fontSize,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.headingDark,
+                                      ),
+                                    ),
+                                  ))
+                                      .toList(),
+                                ),
+                              ),
+                            ),
+                          ),
+                          for (int c = 0; c < size; c++)
+                            SizedBox(
+                              width: cellSize,
+                              height: cellSize,
+                              child: Center(
+                                child: Container(
+                                  width: cellSize - 2,
+                                  height: cellSize - 2,
+                                  decoration: BoxDecoration(
+                                    color: _getCellColor(r, c, state),
+                                    borderRadius: BorderRadius.circular(size > 8 ? 4 : 6),
+                                    border: Border.all(
+                                      color: state.hintCell == (r * size + c)
+                                          ? AppColors.gold
+                                          : AppColors.border,
+                                      width: state.hintCell == (r * size + c) ? 2.5 : 1,
+                                    ),
+                                  ),
+                                  child: _buildCellContent(state.board[r][c], cellSize),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                   ],
                 ),
-            ],
+
+                // Слой 2: невидимый обработчик жестов ТОЛЬКО над клетками
+                Positioned(
+                  left: rowClueWidth,
+                  top: clueHeight,
+                  width: boardWidth,
+                  height: boardHeight,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapUp: (d) => _handleTapUp(d, cellSize, size, state, vm),
+                    onLongPressStart: (d) =>
+                        _handleLongPress(d, cellSize, size, state, vm),
+                    onPanDown: (d) => _handlePanDown(d, cellSize, size),
+                    onPanUpdate: (d) => _handlePanUpdate(d, cellSize, size, vm),
+                    onPanEnd: (_) => _handlePanEnd(vm),
+                    onPanCancel: () => _handlePanEnd(vm),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

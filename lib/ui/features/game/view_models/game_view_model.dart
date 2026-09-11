@@ -102,6 +102,10 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
   static const int _maxUndo = 50;
   final List<_Snapshot> _undoStack = [];
+  bool _autoCrossEnabled = true;
+  bool get autoCrossEnabled => _autoCrossEnabled;
+  void setAutoCross(bool enabled) => _autoCrossEnabled = enabled;
+  bool _strokeUndoPushed = false;
   Timer? _timer;
   Timer? _hintTimer;
 
@@ -289,6 +293,10 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
     newBoard[r][c] = next;
 
+    if (next == CellState.filled) {
+      _applyAutoCrosses(newBoard, level);
+    }
+
     final newConflicts = NonogramRules.computeConflicts(newBoard, level);
     final isComplete = NonogramRules.isComplete(newBoard, level);
 
@@ -309,6 +317,145 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
     );
 
     _persistInProgress();
+  }
+
+  // ─── Stroke (свайп) ─────────────────────────────────────────────
+
+  /// Вызывается в начале свайпа. Реальный undo-push произойдёт
+  /// лениво при первой же реальной правке.
+  void beginStroke() {
+    _strokeUndoPushed = false;
+  }
+
+  /// Красит одну клетку в рамках свайпа.
+  /// [mode] — текущий режим (fill или cross).
+  /// [erase] = true  → стирает клетки, стоящие в [mode] (переводит в empty).
+  /// [erase] = false → ставит [mode] на пустые клетки; чужие (противоположные) не трогает.
+  void paintCell(int r, int c, CellState mode, {required bool erase}) {
+    final level = state.level;
+    if (state.isComplete || level == null) return;
+    if (mode == CellState.empty) return;
+
+    final current = state.board[r][c];
+
+    CellState target;
+    if (erase) {
+      // Стираем только те клетки, которые уже в текущем режиме
+      if (current != mode) return;
+      target = CellState.empty;
+    } else {
+      // Рисуем только на пустых; filled↔cross не меняем
+      if (current != CellState.empty) return;
+      target = mode;
+    }
+
+    if (!_strokeUndoPushed) {
+      _pushUndo();
+      _strokeUndoPushed = true;
+    }
+
+    final n = level.gridSize;
+    final newBoard = List.generate(
+      n,
+          (row) => List<CellState>.from(state.board[row]),
+    );
+    newBoard[r][c] = target;
+
+    // Автокресты запускаем только при добавлении заливки:
+    // добавление — единственное действие, которое может завершить линию.
+    if (target == CellState.filled) {
+      _applyAutoCrosses(newBoard, level);
+    }
+
+    final newConflicts = NonogramRules.computeConflicts(newBoard, level);
+    final isComplete = NonogramRules.isComplete(newBoard, level);
+
+    if (isComplete) {
+      _triggerHaptic(HapticFeedback.heavyImpact);
+      _stopTimer();
+    }
+
+    state = state.copyWith(
+      board: newBoard,
+      conflicts: newConflicts,
+      moveCount: state.moveCount + (target == CellState.filled ? 1 : 0),
+      isComplete: isComplete,
+      canUndo: _undoStack.isNotEmpty,
+      clearHint: true,
+    );
+  }
+
+  /// Вызывается в конце свайпа — сохраняет прогресс одним махом.
+  void endStroke() {
+    if (_strokeUndoPushed) {
+      _persistInProgress();
+    }
+    _strokeUndoPushed = false;
+  }
+
+// ─── Автокресты ────────────────────────────────────────────────
+
+  /// Проставляет крестики в линиях, где группы filled-клеток уже
+  /// полностью совпали с подсказкой. Работает итеративно: автокрест
+  /// в строке может помочь завершить столбец, и наоборот.
+  void _applyAutoCrosses(List<List<CellState>> board, GameLevel level) {
+    if (!_autoCrossEnabled) return;
+    final n = level.gridSize;
+    bool changed = true;
+    int safety = 0;
+
+    while (changed && safety++ < 20) {
+      changed = false;
+
+      // Строки
+      for (int r = 0; r < n; r++) {
+        if (_lineMatchesClue(board[r], level.rowClues[r])) {
+          for (int c = 0; c < n; c++) {
+            if (board[r][c] == CellState.empty) {
+              board[r][c] = CellState.cross;
+              changed = true;
+            }
+          }
+        }
+      }
+
+      // Столбцы
+      for (int c = 0; c < n; c++) {
+        final col = List<CellState>.generate(n, (r) => board[r][c]);
+        if (_lineMatchesClue(col, level.colClues[c])) {
+          for (int r = 0; r < n; r++) {
+            if (board[r][c] == CellState.empty) {
+              board[r][c] = CellState.cross;
+              changed = true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /// true, если группы подряд идущих filled-клеток в линии
+  /// ровно совпадают с подсказкой. Пустые клетки считаются
+  /// разделителями — значит, если структура совпала, всё остальное
+  /// в линии можно смело превращать в крестики.
+  bool _lineMatchesClue(List<CellState> line, List<int> clues) {
+    final groups = <int>[];
+    int count = 0;
+    for (final cell in line) {
+      if (cell == CellState.filled) {
+        count++;
+      } else {
+        if (count > 0) groups.add(count);
+        count = 0;
+      }
+    }
+    if (count > 0) groups.add(count);
+
+    if (groups.length != clues.length) return false;
+    for (int i = 0; i < groups.length; i++) {
+      if (groups[i] != clues[i]) return false;
+    }
+    return true;
   }
 
   void _pushUndo() {
