@@ -102,9 +102,6 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
   static const int _maxUndo = 50;
   final List<_Snapshot> _undoStack = [];
-  bool _autoCrossEnabled = true;
-  bool get autoCrossEnabled => _autoCrossEnabled;
-  void setAutoCross(bool enabled) => _autoCrossEnabled = enabled;
   bool _strokeUndoPushed = false;
   Timer? _timer;
   Timer? _hintTimer;
@@ -399,7 +396,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   /// полностью совпали с подсказкой. Работает итеративно: автокрест
   /// в строке может помочь завершить столбец, и наоборот.
   void _applyAutoCrosses(List<List<CellState>> board, GameLevel level) {
-    if (!_autoCrossEnabled) return;
+    if (!progressRepository.autoCrossEnabled) return;
     final n = level.gridSize;
     bool changed = true;
     int safety = 0;

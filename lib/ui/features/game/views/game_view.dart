@@ -45,9 +45,6 @@ class _GameViewState extends ConsumerState<GameView> {
   Offset? _lastMid;
   double? _lastDist;
 
-// --- автокрест ---
-  bool _autoCrossEnabled = true;
-
   @override
   void dispose() {
     _transformationController.dispose();
@@ -119,27 +116,6 @@ class _GameViewState extends ConsumerState<GameView> {
       vm.setCellState(r, c, CellState.empty);
     } else {
       vm.setCellState(r, c, _currentDrawMode);
-    }
-  }
-
-  void _handleLongPress(
-      LongPressStartDetails d,
-      double cellSize,
-      int size,
-      GameViewModelState state,
-      GameViewModel vm,
-      ) {
-    if (_activePointers.length > 1) return;
-    if (!ref.read(progressRepositoryProvider).longPressToCrossEnabled) return;
-    final r = (d.localPosition.dy / cellSize).floor().clamp(0, size - 1);
-    final c = (d.localPosition.dx / cellSize).floor().clamp(0, size - 1);
-    if (ref.read(progressRepositoryProvider).hapticsEnabled) {
-      HapticFeedback.mediumImpact();
-    }
-    if (state.board[r][c] == CellState.cross) {
-      vm.setCellState(r, c, CellState.empty);
-    } else {
-      vm.setCellState(r, c, CellState.cross);
     }
   }
 
@@ -268,6 +244,13 @@ class _GameViewState extends ConsumerState<GameView> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.headingDark),
+            onPressed: vm.resetLevel,
+            tooltip: 'Restart',
+          ),
+        ],
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -445,39 +428,6 @@ class _GameViewState extends ConsumerState<GameView> {
                               ],
                             ),
                           ),
-
-                          // Action Row: Undo, Hint, Restart
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 4,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildActionButton(
-                                  icon: Icons.undo_rounded,
-                                  label: 'UNDO',
-                                  onPressed: state.canUndo && !state.isComplete
-                                      ? vm.undo
-                                      : null,
-                                ),
-                                _buildActionButton(
-                                  icon: Icons.lightbulb_outline_rounded,
-                                  label: 'HINT',
-                                  iconColor: AppColors.gold,
-                                  onPressed: state.isComplete
-                                      ? null
-                                      : vm.requestHint,
-                                ),
-                                _buildActionButton(
-                                  icon: Icons.refresh_rounded,
-                                  label: 'RESTART',
-                                  onPressed: vm.resetLevel,
-                                ),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -506,9 +456,18 @@ class _GameViewState extends ConsumerState<GameView> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          _buildCircleActionButton(
+                            icon: Icons.undo_rounded,
+                            onPressed: state.canUndo && !state.isComplete ? vm.undo : null,
+                          ),
+                          const SizedBox(width: 20),
                           _buildModeToggle(),
-                          const SizedBox(width: 12),
-                          _buildAutoCrossToggle(vm),
+                          const SizedBox(width: 20),
+                          _buildCircleActionButton(
+                            icon: Icons.lightbulb_outline_rounded,
+                            iconColor: AppColors.gold,
+                            onPressed: state.isComplete ? null : vm.requestHint,
+                          ),
                         ],
                       ),
                     ),
@@ -619,24 +578,6 @@ class _GameViewState extends ConsumerState<GameView> {
 
               const SizedBox(height: 12),
 
-              // 2. Buy Me a Coffee Button
-              TangibleButton(
-                text: 'Buy Me a Coffee',
-                isSecondary: true,
-                icon: Icons.coffee_rounded,
-                onPressed: () async {
-                  final Uri url = Uri.parse('https://ko-fi.com/sidhant947');
-                  if (!await launchUrl(
-                    url,
-                    mode: LaunchMode.externalApplication,
-                  )) {
-                    throw Exception('Could not launch $url');
-                  }
-                },
-              ),
-
-              const SizedBox(height: 12),
-
               // 3. Home Button
               TangibleButton(
                 text: 'Home',
@@ -656,45 +597,32 @@ class _GameViewState extends ConsumerState<GameView> {
     );
   }
 
-  Widget _buildActionButton({
+  Widget _buildCircleActionButton({
     required IconData icon,
-    required String label,
     required VoidCallback? onPressed,
     Color? iconColor,
   }) {
-    final bool isDisabled = onPressed == null;
-    return InkWell(
+    final isDisabled = onPressed == null;
+    return GestureDetector(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 56,
+        height: 56,
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border, width: 1.0),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: AppColors.border,
+            width: 2,
+          ),
         ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isDisabled
-                  ? AppColors.subtext.withValues(alpha: 0.4)
-                  : (iconColor ?? AppColors.headingDark),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-                color: isDisabled
-                    ? AppColors.subtext.withValues(alpha: 0.4)
-                    : AppColors.headingDark,
-                letterSpacing: 0.8,
-              ),
-            ),
-          ],
+        child: Icon(
+          icon,
+          size: 24,
+          color: isDisabled
+              ? AppColors.subtext.withValues(alpha: 0.4)
+              : (iconColor ?? AppColors.headingDark),
         ),
       ),
     );
@@ -747,45 +675,6 @@ class _GameViewState extends ConsumerState<GameView> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAutoCrossToggle(GameViewModel vm) {
-    final enabled = _autoCrossEnabled;
-    return GestureDetector(
-      onTap: () {
-        if (ref.read(progressRepositoryProvider).hapticsEnabled) {
-          HapticFeedback.selectionClick();
-        }
-        setState(() => _autoCrossEnabled = !enabled);
-        vm.setAutoCross(_autoCrossEnabled);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: enabled ? AppColors.gold : AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: enabled ? Colors.white : AppColors.border,
-            width: 2,
-          ),
-          boxShadow: enabled
-              ? [
-            BoxShadow(
-              color: AppColors.gold.withValues(alpha: 0.4),
-              blurRadius: 10,
-              spreadRadius: 2,
-            ),
-          ]
-              : [],
-        ),
-        child: Icon(
-          Icons.auto_fix_high_rounded,
-          color: enabled ? Colors.black : AppColors.subtext,
-          size: 24,
         ),
       ),
     );
@@ -989,8 +878,6 @@ class _GameViewState extends ConsumerState<GameView> {
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTapUp: (d) => _handleTapUp(d, cellSize, size, state, vm),
-                    onLongPressStart: (d) =>
-                        _handleLongPress(d, cellSize, size, state, vm),
                     onPanDown: (d) => _handlePanDown(d, cellSize, size),
                     onPanUpdate: (d) => _handlePanUpdate(d, cellSize, size, vm),
                     onPanEnd: (_) => _handlePanEnd(vm),

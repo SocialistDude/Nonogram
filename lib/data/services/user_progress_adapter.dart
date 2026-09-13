@@ -24,7 +24,7 @@ class UserProgressAdapter extends TypeAdapter<UserProgress> {
       savedMoveCount: fields[7] as int? ?? 0,
       savedElapsedSeconds: fields[8] as int? ?? 0,
       hapticsEnabled: fields[9] as bool? ?? true,
-      longPressToCrossEnabled: fields[10] as bool? ?? true,
+      autoCrossEnabled: fields[10] as bool? ?? true,
     );
   }
 
@@ -52,7 +52,7 @@ class UserProgressAdapter extends TypeAdapter<UserProgress> {
     writer.writeByte(9);
     writer.write(obj.hapticsEnabled);
     writer.writeByte(10);
-    writer.write(obj.longPressToCrossEnabled);
+    writer.write(obj.autoCrossEnabled);
   }
 
   Map<int, int> _readIntMap(dynamic raw) {

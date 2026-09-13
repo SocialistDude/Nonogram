@@ -151,7 +151,7 @@ class SettingsView extends ConsumerWidget {
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                         title: const Text(
-                          'Long Press to Cross',
+                          'Auto-cross',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
@@ -159,14 +159,18 @@ class SettingsView extends ConsumerWidget {
                             letterSpacing: 0.8,
                           ),
                         ),
+                        subtitle: const Text(
+                          'Automatically place X in completed lines',
+                          style: TextStyle(fontSize: 12, color: AppColors.subtext),
+                        ),
                         trailing: Switch(
-                          value: ref.watch(progressRepositoryProvider).longPressToCrossEnabled,
+                          value: ref.watch(progressRepositoryProvider).autoCrossEnabled,
                           activeThumbColor: Colors.white,
                           activeTrackColor: Colors.grey[700],
                           inactiveThumbColor: AppColors.subtext,
                           inactiveTrackColor: AppColors.bg,
                           onChanged: (val) {
-                            ref.read(progressRepositoryProvider).toggleLongPressToCross();
+                            ref.read(progressRepositoryProvider).toggleAutoCross();
                           },
                         ),
                       ),

@@ -98,11 +98,6 @@ class _HomeViewState extends ConsumerState<HomeView> with SingleTickerProviderSt
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _circleButton(
-                    icon: Icons.star_rounded,
-                    iconColor: AppColors.gold,
-                    onTap: () => _launchUrl('https://github.com/sidhant947/Nonogram'),
-                  ),
                   if (state.progress != null)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -126,11 +121,6 @@ class _HomeViewState extends ConsumerState<HomeView> with SingleTickerProviderSt
                     )
                   else
                     const SizedBox.shrink(),
-                  _circleButton(
-                    icon: Icons.favorite_rounded,
-                    iconColor: const Color(0xFFEF4444),
-                    onTap: () => _launchUrl('https://ko-fi.com/sidhant947'),
-                  ),
                 ],
               ),
               const Spacer(flex: 3),
