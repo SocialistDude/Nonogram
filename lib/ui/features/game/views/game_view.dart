@@ -281,7 +281,7 @@ class _GameViewState extends ConsumerState<GameView> {
                   // Layer 1: Scalable Nonogram Board Area with Edge Dissolve Mask
                   Column(
                     children: [
-                      const SizedBox(height: 90), // Reserved top space
+                      const SizedBox(height: 60), // Reserved top space
                       Expanded(
                         child: ShaderMask(
                           shaderCallback: (Rect bounds) {
@@ -353,105 +353,53 @@ class _GameViewState extends ConsumerState<GameView> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 75), // Reserved bottom space
+                      const SizedBox(height: 60), // Reserved bottom space
                     ],
                   ),
 
-                  // Layer 2: Top Controls with Ultra-Smooth Dissolve Gradient
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            AppColors.bg,
-                            AppColors.bg.withValues(alpha: 0.95),
-                            AppColors.bg.withValues(alpha: 0.6),
-                            AppColors.bg.withValues(alpha: 0.0),
-                          ],
-                          stops: const [0.0, 0.55, 0.8, 1.0],
-                        ),
-                      ),
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                  // Layer 2: Top Controls
+                  Positioned(top: 0, left: 0, right: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 24, left: 24, right: 24, top: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Timer and Move Count header
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.timer_outlined,
-                                      color: AppColors.subtext,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      _formatTime(state.elapsedSeconds),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.subtext,
-                                      ),
-                                    ),
-                                  ],
+                          Row(
+                            children: [
+                              const Icon(Icons.timer_outlined, color: AppColors.subtext, size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                _formatTime(state.elapsedSeconds),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.subtext,
                                 ),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.touch_app_outlined,
-                                      color: AppColors.subtext,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'MOVES: ${state.moveCount}',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.subtext,
-                                      ),
-                                    ),
-                                  ],
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.touch_app_outlined, color: AppColors.subtext, size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                'MOVES: ${state.moveCount}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.subtext,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  // Layer 3: Bottom Controls with Ultra-Smooth Dissolve Gradient
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            AppColors.bg,
-                            AppColors.bg.withValues(alpha: 0.95),
-                            AppColors.bg.withValues(alpha: 0.6),
-                            AppColors.bg.withValues(alpha: 0.0),
-                          ],
-                          stops: const [0.0, 0.55, 0.8, 1.0],
-                        ),
-                      ),
+                  // Layer 3: Bottom Controls
+                  Positioned(bottom: 0, left: 0, right: 0,
+                    child: Padding(
                       padding: const EdgeInsets.only(top: 24, bottom: 16),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -672,56 +620,6 @@ class _GameViewState extends ConsumerState<GameView> {
                 fontSize: 16,
                 letterSpacing: 0.8,
                 color: fgColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildToggleOption({
-    required CellState mode,
-    required IconData icon,
-    required String label,
-    required Color color,
-  }) {
-    final isSelected = _currentDrawMode == mode;
-    return GestureDetector(
-      onTap: () {
-        if (ref.read(progressRepositoryProvider).hapticsEnabled) {
-          HapticFeedback.selectionClick();
-        }
-        setState(() => _currentDrawMode = mode);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? color : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: isSelected
-              ? [
-            BoxShadow(
-              color: color.withValues(alpha: 0.4),
-              blurRadius: 8,
-              spreadRadius: 1,
-            ),
-          ]
-              : [],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: isSelected ? Colors.black : color, size: 20),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
-                letterSpacing: 0.8,
-                color: isSelected ? Colors.black : AppColors.headingDark,
               ),
             ),
           ],
