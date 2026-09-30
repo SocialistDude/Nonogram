@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:nonogram_tools/clues.dart'; // ← на самом деле не нужен, но оставим для переиспользования
+// ← на самом деле не нужен, но оставим для переиспользования
 import 'package:nonogram_tools/png_reader.dart';
 import 'package:nonogram_tools/solver.dart';
 

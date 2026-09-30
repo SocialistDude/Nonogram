@@ -33,7 +33,6 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: AppColors.accent,
         surface: AppColors.surface,
-        background: AppColors.bg,
       ),
       fontFamily: 'BebasNeue',
     );

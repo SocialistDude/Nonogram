@@ -63,8 +63,8 @@ class LevelSelectView extends ConsumerWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: isCompleted
-                      ? AppColors.accent.withOpacity(0.2)
-                      : (isUnlocked ? AppColors.surface : AppColors.surface.withOpacity(0.4)),
+                      ? AppColors.accent.withValues(alpha: 0.2)
+                      : (isUnlocked ? AppColors.surface : AppColors.surface.withValues(alpha: 0.4)),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isCompleted

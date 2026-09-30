@@ -3,7 +3,7 @@ import '../domain/user_progress.dart';
 import 'hive_service.dart';
 
 class ProgressRepository extends ChangeNotifier {
-  ProgressRepository({required HiveService hiveService}) : _hiveService = hiveService;
+  ProgressRepository({required this._hiveService});
 
   final HiveService _hiveService;
   UserProgress? _cachedProgress;

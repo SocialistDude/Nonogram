@@ -33,7 +33,7 @@ void main(List<String> args) {
       ..sort((a, b) => a.path.compareTo(b.path));
 
     if (existing.isNotEmpty) {
-      stdout.writeln('📄 Манифест не найден — засеваю из ${_levelsDir}/:');
+      stdout.writeln('📄 Манифест не найден — засеваю из $_levelsDir/:');
       for (final f in existing) {
         final name = f.uri.pathSegments.last;
         final lv = readLevelPng(f);
