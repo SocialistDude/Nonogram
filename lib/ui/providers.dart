@@ -1,36 +1,37 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/repositories/progress_repository.dart';
-import '../data/services/hive_service.dart';
-import '../domain/use_cases/level_generator.dart';
-import '../ui/features/game/view_models/game_view_model.dart';
-import '../ui/features/home/view_models/home_view_model.dart';
+import '../data/progress_repository.dart';
+import '../data/hive_service.dart';
+import '../domain/level_repository.dart';
+import '../ui/screens/game/game_view_model.dart';
+import '../ui/screens/home/home_view_model.dart';
 
 final hiveServiceProvider = Provider<HiveService>((ref) {
   throw UnimplementedError('Must be overridden in main');
 });
 
-final progressRepositoryProvider = ChangeNotifierProvider<ProgressRepository>((ref) {
+final progressRepositoryProvider =
+ChangeNotifierProvider<ProgressRepository>((ref) {
   final hiveService = ref.watch(hiveServiceProvider);
   return ProgressRepository(hiveService: hiveService);
 });
 
-final levelGeneratorProvider = Provider<LevelGenerator>((ref) {
-  return LevelGenerator();
+final levelRepositoryProvider = Provider<LevelRepository>((ref) {
+  return LevelRepository();
 });
 
 final homeViewModelProvider =
-    StateNotifierProvider<HomeViewModel, HomeViewModelState>((ref) {
-  final progressRepository = ref.read(progressRepositoryProvider);
-  return HomeViewModel(progressRepository: progressRepository);
+StateNotifierProvider<HomeViewModel, HomeViewModelState>((ref) {
+  final repo = ref.read(progressRepositoryProvider);
+  return HomeViewModel(progressRepository: repo);
 });
 
 final gameViewModelProvider =
-    StateNotifierProvider.autoDispose<GameViewModel, GameViewModelState>((ref) {
-  final progressRepository = ref.read(progressRepositoryProvider);
-  final levelGenerator = ref.read(levelGeneratorProvider);
+StateNotifierProvider.autoDispose<GameViewModel, GameViewModelState>((ref) {
+  final progressRepo = ref.read(progressRepositoryProvider);
+  final levelRepo = ref.read(levelRepositoryProvider);
   return GameViewModel(
-    progressRepository: progressRepository,
-    levelGenerator: levelGenerator,
+    progressRepository: progressRepo,
+    levelRepository: levelRepo,
   );
 });

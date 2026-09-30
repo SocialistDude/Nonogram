@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Уровни на рассмотрении — рабочие PNG, не идут в репозиторий
+/assets/levels_pending/
+
 # Symbolication & Obfuscation
 app.*.symbols
 app.*.map.json

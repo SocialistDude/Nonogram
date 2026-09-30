@@ -1,0 +1,44 @@
+{
+  "levels": [
+    {
+      "file": "car_16x16.png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "check_16x16.png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "earth_16x16.png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "heart_16x16.png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "house_16x16.png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "shuriken_16x16.png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "smile_16x16.png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "star_16x16.png",
+      "width": 16,
+      "height": 16
+    }
+  ]
+}

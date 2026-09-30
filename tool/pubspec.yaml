@@ -1,0 +1,7 @@
+name: nonogram_tools
+description: Offline tooling for nonogram level verification and code generation.
+publish_to: none
+environment:
+  sdk: ^3.12.2
+dependencies:
+  image: ^4.2.0
