@@ -5,3 +5,4 @@ environment:
   sdk: ^3.12.2
 dependencies:
   image: ^4.2.0
+  http: ^1.2.2

@@ -6,6 +6,7 @@ class UserProgress {
   const UserProgress({
     this.currentLevel = 1,
     this.highestLevelCompleted = 0,
+    this.lastCompletedLevel,
     this.totalMoves = 0,
     this.bestMoves = const {},
     this.bestTimeSeconds = const {},
@@ -19,6 +20,7 @@ class UserProgress {
 
   final int currentLevel;
   final int highestLevelCompleted;
+  final int? lastCompletedLevel;
   final int totalMoves;
 
   final Map<int, int> bestMoves;
@@ -34,6 +36,7 @@ class UserProgress {
   UserProgress copyWith({
     int? currentLevel,
     int? highestLevelCompleted,
+    int? lastCompletedLevel,
     int? totalMoves,
     Map<int, int>? bestMoves,
     Map<int, int>? bestTimeSeconds,
@@ -46,8 +49,8 @@ class UserProgress {
   }) {
     return UserProgress(
       currentLevel: currentLevel ?? this.currentLevel,
-      highestLevelCompleted:
-          highestLevelCompleted ?? this.highestLevelCompleted,
+      highestLevelCompleted: highestLevelCompleted ?? this.highestLevelCompleted,
+      lastCompletedLevel: lastCompletedLevel ?? this.lastCompletedLevel,
       totalMoves: totalMoves ?? this.totalMoves,
       bestMoves: bestMoves ?? this.bestMoves,
       bestTimeSeconds: bestTimeSeconds ?? this.bestTimeSeconds,
@@ -101,10 +104,14 @@ class UserProgress {
     );
   }
 
+  UserProgress withLastCompleted(int levelNumber) =>
+      copyWith(lastCompletedLevel: levelNumber);
+
   UserProgress withoutSavedGame() {
     return UserProgress(
       currentLevel: currentLevel,
       highestLevelCompleted: highestLevelCompleted,
+      lastCompletedLevel: lastCompletedLevel,   // ← не забудь
       totalMoves: totalMoves,
       bestMoves: bestMoves,
       bestTimeSeconds: bestTimeSeconds,

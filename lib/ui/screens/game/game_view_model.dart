@@ -97,7 +97,6 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   final List<_Snapshot> _undoStack = [];
   bool _strokeUndoPushed = false;
   Timer? _timer;
-  Timer? _hintTimer;
 
   void _startTimer() {
     _timer?.cancel();
@@ -168,58 +167,6 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         error: 'Failed to load level: $e',
       );
     }
-  }
-
-  void toggleCell(int r, int c) {
-    if (state.hintMode) {
-      _applyHintAt(r, c);
-      return;
-    }
-    final level = state.level;
-    if (state.isComplete || level == null) return;
-
-    _pushUndo();
-
-    final newBoard = List.generate(
-      level.height,
-          (r) => List<CellState>.from(state.board[r]),
-    );
-
-    final current = newBoard[r][c];
-    CellState next;
-    int movesDelta = 0;
-
-    if (current == CellState.empty) {
-      next = CellState.filled;
-      movesDelta = 1;
-      _triggerHaptic(HapticFeedback.mediumImpact);
-    } else if (current == CellState.filled) {
-      next = CellState.cross;
-      _triggerHaptic(HapticFeedback.lightImpact);
-    } else {
-      next = CellState.empty;
-      _triggerHaptic(HapticFeedback.lightImpact);
-    }
-
-    newBoard[r][c] = next;
-
-    final newConflicts = NonogramRules.computeConflicts(newBoard, level);
-    final isComplete = NonogramRules.isComplete(newBoard, level);
-
-    if (isComplete) {
-      _triggerHaptic(HapticFeedback.heavyImpact);
-      _stopTimer();
-    }
-
-    state = state.copyWith(
-      board: newBoard,
-      conflicts: newConflicts,
-      moveCount: state.moveCount + movesDelta,
-      isComplete: isComplete,
-      canUndo: _undoStack.isNotEmpty,
-    );
-
-    _persistInProgress();
   }
 
   void setCellState(int r, int c, CellState next) {
@@ -370,7 +317,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
       // Столбцы
       for (int c = 0; c < level.width; c++) {
-        final col = List<CellState>.generate(level.width, (r) => board[r][c]);
+        final col = List<CellState>.generate(level.height, (r) => board[r][c]);
         if (_lineMatchesClue(col, level.colClues[c])) {
           for (int r = 0; r < level.height; r++) {
             if (board[r][c] == CellState.empty) {
@@ -475,7 +422,33 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
     state = state.copyWith(hintMode: !state.hintMode);
   }
 
+  DateTime _lastPersist = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _persistTimer;
+
   void _persistInProgress() {
+    final level = state.level;
+    if (level == null || state.isComplete) return;
+
+    // Не чаще раза в 1.5 секунды, но последнее состояние должно доехать.
+    final now = DateTime.now();
+    final elapsed = now.difference(_lastPersist);
+
+    if (elapsed.inMilliseconds < 1500) {
+      _persistTimer?.cancel();
+      _persistTimer = Timer(
+        Duration(milliseconds: 1500 - elapsed.inMilliseconds),
+        _doPersistNow,
+      );
+      return;
+    }
+    _doPersistNow();
+  }
+
+  void _doPersistNow() {
+    _persistTimer?.cancel();
+    _persistTimer = null;
+    _lastPersist = DateTime.now();
+
     final level = state.level;
     if (level == null || state.isComplete) return;
     final boardIndices = state.board
@@ -487,6 +460,20 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
       state.moveCount,
       state.elapsedSeconds,
     );
+  }
+
+  /// Принудительно сохранить текущее состояние.
+  /// Используется при выходе из экрана, чтобы не потерять последние ходы,
+  /// ожидающие срабатывания throttle.
+  void flushPersist() {
+    if (_strokeUndoPushed) {
+      // Есть незавершённый stroke — сохраняемся.
+      _doPersistNow();
+    } else {
+      // Даже если stroke не активен, но throttle-таймер висит — сбрасываем.
+      _persistTimer?.cancel();
+      _persistTimer = null;
+    }
   }
 
   Future<void> completeLevel() async {
@@ -510,6 +497,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
   @override
   void dispose() {
+    _persistTimer?.cancel();
     _stopTimer();
     super.dispose();
   }

@@ -50,6 +50,14 @@ class _GameViewState extends ConsumerState<GameView> {
   }
 
   @override
+  void deactivate() {
+    try {
+      ref.read(gameViewModelProvider.notifier).flushPersist();
+    } catch (_) {}
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
     _transformationController.dispose();
     super.dispose();
@@ -277,24 +285,8 @@ class _GameViewState extends ConsumerState<GameView> {
           children: [
             Column(
               children: [
-                const SizedBox(height: 60),
                 Expanded(
-                  child: ShaderMask(
-                    shaderCallback: (Rect bounds) {
-                      return const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black,
-                          Colors.black,
-                          Colors.transparent,
-                        ],
-                        stops: [0.0, 0.08, 0.92, 1.0],
-                      ).createShader(bounds);
-                    },
-                    blendMode: BlendMode.dstIn,
-                    child: Listener(
+                  child: Listener(
                       behavior: HitTestBehavior.opaque,
                       onPointerDown: (event) {
                         _activePointers[event.pointer] =
@@ -352,9 +344,7 @@ class _GameViewState extends ConsumerState<GameView> {
                         ),
                       ),
                     ),
-                  ),
                 ),
-                const SizedBox(height: 60),
               ],
             ),
 

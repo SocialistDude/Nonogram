@@ -1,12 +1,112 @@
 {
   "levels": [
     {
+      "file": "axe_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "cross_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "save_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "sprayer_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "t_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "triangle_and_circle_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "battery_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "brick_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "dot_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "head_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "heart_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "play_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "radio_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "robot_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "shield_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "zoom_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "arrow_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "ball_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "code_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
+      "file": "rectangle_8x8.png",
+      "width": 8,
+      "height": 8
+    },
+    {
       "file": "car_16x16.png",
       "width": 16,
       "height": 16
     },
     {
-      "file": "check_16x16.png",
+      "file": "house_16x16.png",
       "width": 16,
       "height": 16
     },
@@ -21,17 +121,17 @@
       "height": 16
     },
     {
-      "file": "house_16x16.png",
-      "width": 16,
-      "height": 16
-    },
-    {
       "file": "shuriken_16x16.png",
       "width": 16,
       "height": 16
     },
     {
       "file": "smile_16x16.png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "check_16x16.png",
       "width": 16,
       "height": 16
     },

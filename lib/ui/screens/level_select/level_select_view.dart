@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app_theme.dart';
 import '../../providers.dart';
 import '../game/game_view.dart';
+import '../../../domain/game_level.dart';
+import '../../widgets/solution_painter.dart';
 
 class LevelSelectView extends ConsumerWidget {
   const LevelSelectView({super.key});
@@ -48,57 +50,102 @@ class LevelSelectView extends ConsumerWidget {
             final isUnlocked = levelNumber <= highestCompleted + 1;
             final isCompleted = levelNumber <= highestCompleted;
 
+            GameLevel? level;
+            if (isCompleted && levelNumber <= repo.totalLevels) {
+              level = repo.getLevel(levelNumber);
+            }
+
             return GestureDetector(
               onTap: isUnlocked
                   ? () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GameView(levelNumber: levelNumber),
-                        ),
-                      );
-                      ref.read(homeViewModelProvider.notifier).loadProgress();
-                    }
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GameView(levelNumber: levelNumber),
+                  ),
+                );
+                ref.read(homeViewModelProvider.notifier).loadProgress();
+              }
                   : null,
               child: Container(
                 decoration: BoxDecoration(
                   color: isCompleted
-                      ? AppColors.accent.withValues(alpha: 0.2)
-                      : (isUnlocked ? AppColors.surface : AppColors.surface.withValues(alpha: 0.4)),
+                      ? AppColors.surface
+                      : (isUnlocked
+                      ? AppColors.surface.withValues(alpha: 0.6)
+                      : AppColors.surface.withValues(alpha: 0.3)),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isCompleted
                         ? AppColors.accent
                         : (isUnlocked ? AppColors.border : Colors.transparent),
-                    width: 1.5,
+                    width: isCompleted ? 2 : 1.5,
                   ),
                 ),
-                alignment: Alignment.center,
-                child: isUnlocked
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '$levelNumber',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: isCompleted ? AppColors.accent : AppColors.headingDark,
+                child: Stack(
+                  children: [
+                    // Превью решения
+                    if (level != null)
+                      Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: CustomPaint(
+                            painter: SolutionPainter(
+                              grid: level.solutionGrid,
+                              color: AppColors.accent,
+                              width: level.width,
+                              height: level.height,
                             ),
                           ),
-                          if (isCompleted)
-                            const Icon(
-                              Icons.check_circle_rounded,
-                              size: 14,
-                              color: AppColors.accent,
-                            ),
-                        ],
-                      )
-                    : const Icon(
-                        Icons.lock_rounded,
-                        color: AppColors.subtext,
-                        size: 20,
+                        ),
                       ),
+
+                    // Номер уровня в углу
+                    Positioned(
+                      top: 6,
+                      left: 8,
+                      child: Text(
+                        '$levelNumber',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: isUnlocked
+                              ? AppColors.headingDark
+                              : AppColors.subtext,
+                        ),
+                      ),
+                    ),
+
+                    // Замок для закрытых
+                    if (!isUnlocked)
+                      const Center(
+                        child: Icon(
+                          Icons.lock_rounded,
+                          color: AppColors.subtext,
+                          size: 20,
+                        ),
+                      ),
+
+                    // Галочка для выполненных
+                    if (isCompleted)
+                      Positioned(
+                        bottom: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: AppColors.accent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check_rounded,
+                            size: 12,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             );
           },

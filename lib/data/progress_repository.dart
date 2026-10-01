@@ -40,8 +40,8 @@ class ProgressRepository extends ChangeNotifier {
     final current = await getProgress();
     final isNewCompletion = levelNumber == current.highestLevelCompleted + 1;
     final updated = isNewCompletion
-        ? current.incrementLevel().addMoves(moves)
-        : current.addMoves(moves);
+        ? current.incrementLevel().addMoves(moves).withLastCompleted(levelNumber)
+        : current.addMoves(moves).withLastCompleted(levelNumber);
     await saveProgress(updated);
   }
 

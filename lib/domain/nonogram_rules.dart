@@ -29,26 +29,4 @@ class NonogramRules {
       ),
     );
   }
-
-  /// Suggest a hint: returns [row, col] of an unrevealed or incorrect cell
-  static List<int>? suggestHint(
-      List<List<CellState>> board,
-      GameLevel level,
-      ) {
-    for (int r = 0; r < level.height; r++) {
-      for (int c = 0; c < level.width; c++) {
-        if (board[r][c] == CellState.filled && !level.solutionGrid[r][c]) {
-          return [r, c];
-        }
-      }
-    }
-    for (int r = 0; r < level.height; r++) {
-      for (int c = 0; c < level.width; c++) {
-        if (level.solutionGrid[r][c] && board[r][c] != CellState.filled) {
-          return [r, c];
-        }
-      }
-    }
-    return null;
-  }
 }
